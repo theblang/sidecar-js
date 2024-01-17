@@ -1,3 +1,3 @@
-# landing-page-experiments
+# Statsig Sidecar
 
-Statsig helps run simple web experiments by using a no-code visual editor.
+Statsig sidecar helps marketing teams build and run experiments without needing to write or modify code.
