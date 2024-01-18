@@ -80,9 +80,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     if (Array.isArray(expIds)) {
       expIds.forEach((expId) => {
         const expConfig = Statsig.getExperiment(expId);
-        console.log(expConfig);
         const directives = expConfig.get('directives', []);
-        console.log(directives);
         directives.forEach((directive) => {
           this.performDirective(directive, nonce);
         });
@@ -99,8 +97,6 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   setupStatsigSdk: async function(apiKey, expIds, nonce) {
-    console.log(Statsig);
-    console.log(Statsig.default);
     if (!Statsig.instance) {
       const user = this.getStatsigUser();
       await Statsig.initialize(apiKey, user);
