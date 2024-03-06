@@ -1,6 +1,30 @@
 const Statsig = require('statsig-js').default;
 
 window["StatsigSidecar"] = window["StatsigSidecar"] || {
+  getMatchingExperiments: function() {
+    const url = window.location.href;
+    const scConfig = Statsig.getConfig('sidecar_dynamic_config');
+    if (!scConfig) {
+      return null;
+    }
+    const exps = scConfig.getValue('activeExperiments', []);
+    const matchingExps = [];
+    exps.forEach((exp) => {
+      const filters = exp.filters || [];
+      if (filters.length === 0) {
+        matchingExps.push(exp.id);
+        return;
+      }
+
+      filters.forEach((filter) => {
+        if (RegExp(filter).test(url)) {
+          matchingExps.push(exp.id);
+        }
+      });
+    });
+    return matchingExps;
+  },
+
   getStableID: function() {
     const key = 'STATSIG_LOCAL_STORAGE_STABLE_ID';
     let sid = window.localStorage ? window.localStorage.getItem(key) : null;
@@ -101,6 +125,14 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       const user = this.getStatsigUser();
       await Statsig.initialize(apiKey, user);
     }
+    if (!expIds) {
+      expIds = this.getMatchingExperiments();
+    }
+    if (!expIds) {
+      this.resetBody();
+      return;
+    }
+
     this.performExperiments(expIds, nonce);
   },
 }
@@ -109,9 +141,9 @@ if (document.currentScript && document.currentScript.src) {
   const url = new URL(document.currentScript.src);
   const apiKey = url.searchParams.get('apikey');
   const multiExpIds = url.searchParams.get('multiexpids')
-  if (apiKey && multiExpIds) {
+  if (apiKey) {
     document.write('<style id="__sbpd">body { display: none; }</style>\n');
-    const expIds = multiExpIds.split(',');
+    const expIds = multiExpIds ? multiExpIds.split(',') : null;
     StatsigSidecar.setupStatsigSdk(apiKey, expIds, document.currentScript.nonce);
   }
 }
