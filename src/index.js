@@ -1,9 +1,16 @@
 const Statsig = require('statsig-js').default;
+const StatsigWA = require('statsig-web-analytics');
 
 window["StatsigSidecar"] = window["StatsigSidecar"] || {
+  _statsigInstance: null,
+
+  getStatsigInstance: function() {
+    return this._statsigInstance;
+  },
+
   getMatchingExperiments: function() {
     const url = window.location.href;
-    const scConfig = Statsig.getConfig('sidecar_dynamic_config');
+    const scConfig = this._statsigInstance.getConfig('sidecar_dynamic_config');
     if (!scConfig) {
       return null;
     }
@@ -23,33 +30,6 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       });
     });
     return matchingExps;
-  },
-
-  getStableID: function() {
-    const key = 'STATSIG_LOCAL_STORAGE_STABLE_ID';
-    let sid = window.localStorage ? window.localStorage.getItem(key) : null;
-    if (!sid) {
-      sid = crypto.randomUUID();
-      if (window.localStorage) {
-        window.localStorage.setItem(key, sid);
-      }
-    }
-    return sid;
-  },
-
-  getStatsigUser: function() {
-    const sid = this.getStableID();
-    return {
-      userID: sid,
-      customIDs: {
-        stableID: sid,
-      },
-      custom: {
-        url: window.location.href,
-        page_url: window.location.href,
-        language: window.navigator.language,
-      },
-    };
   },
 
   performContentChange: function(query, value) {
@@ -103,7 +83,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   performExperiments: function(expIds, nonce) {
     if (Array.isArray(expIds)) {
       expIds.forEach((expId) => {
-        const expConfig = Statsig.getExperiment(expId);
+        const expConfig = this._statsigInstance.getExperiment(expId);
         const directives = expConfig.get('directives', []);
         directives.forEach((directive) => {
           this.performDirective(directive, nonce);
@@ -120,11 +100,12 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  setupStatsigSdk: async function(apiKey, expIds, nonce) {
-    if (!Statsig.instance) {
-      const user = this.getStatsigUser();
-      await Statsig.initialize(apiKey, user);
+  setupStatsigSdk: async function(apiKey, expIds, autoStart, nonce) {
+    if (!this._statsigInstance) {
+      await StatsigWA.initialize(apiKey, autoStart);
+      this._statsigInstance = StatsigWA.getStatsigClient();
     }
+
     if (!expIds) {
       expIds = this.getMatchingExperiments();
     }
@@ -140,10 +121,16 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
 if (document.currentScript && document.currentScript.src) {
   const url = new URL(document.currentScript.src);
   const apiKey = url.searchParams.get('apikey');
-  const multiExpIds = url.searchParams.get('multiexpids')
+  const multiExpIds = url.searchParams.get('multiexpids');
+  const autoStart = url.searchParams.get('autostart') !== '0';
   if (apiKey) {
     document.write('<style id="__sbpd">body { display: none; }</style>\n');
     const expIds = multiExpIds ? multiExpIds.split(',') : null;
-    StatsigSidecar.setupStatsigSdk(apiKey, expIds, document.currentScript.nonce);
+    StatsigSidecar.setupStatsigSdk(
+      apiKey,
+      expIds,
+      autoStart,
+      document.currentScript.nonce,      
+    );
   }
 }
