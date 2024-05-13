@@ -39,6 +39,29 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
+  performReorderElement: function(query, operator, anchorQuery) {
+    const target = document.querySelector(query);
+    const anchor = document.querySelector(anchorQuery);
+    if (!target || !anchor) {
+      return;
+    }
+
+    switch (operator) {
+      case 'before':
+        anchor.before(target);
+        break;
+      case 'after':
+        anchor.after(target);
+        break;
+      case 'first':
+        anchor.prepend(target);
+        break;
+      case 'last':
+        anchor.append(target);
+        break;
+    }
+  },
+
   performStyleChange: function(query, value) {
     const element = document.querySelector(query);
     if (element) {
@@ -70,6 +93,14 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
         this.performStyleChange(directive.queryPath, directive.value);
         break;
 
+      case 'reorder-element':
+        this.performReorderElement(
+          directive.queryPath,
+          directive.operator,
+          directive.anchorQueryPath,
+        );
+        break;
+
       case 'inject-script':
         this.performInjectScript(directive.value, nonce);
         break;
@@ -91,6 +122,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       });
     }
     this.resetBody();
+    if (window?.postExperimentCallback) {
+      window.postExperimentCallback(this._statsigInstance, expIds);
+    }
   },
 
   resetBody: function() {
