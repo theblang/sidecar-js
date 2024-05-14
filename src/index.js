@@ -1,4 +1,5 @@
 const Statsig = require('statsig-js').default;
+const StatsigClient = require('statsig-js').StatsigClient;
 const StatsigWA = require('statsig-web-analytics');
 
 window["StatsigSidecar"] = window["StatsigSidecar"] || {
@@ -18,18 +19,28 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     const matchingExps = [];
     exps.forEach((exp) => {
       const filters = exp.filters || [];
-      if (filters.length === 0) {
-        matchingExps.push(exp.id);
-        return;
-      }
+      const filterType = exp.filterType || 'all';
 
-      filters.forEach((filter) => {
-        if (RegExp(filter).test(url)) {
-          matchingExps.push(exp.id);
-        }
-      });
+      if (this.isMatchingExperiment(filterType, filters)) {
+        matchingExps.push(exp.id);
+      }
     });
     return matchingExps;
+  },
+
+  isMatchingExperiment: function(filterType, filters) {
+    if (filterType === 'all' || filters.length === 0) {
+      return true;
+    }
+    const url = window.location.href;
+    if (filterType === 'contains') {
+      return filters.some((filter) => url.includes(filter));
+    } else if (filterType === 'equals') {
+      return filters.some((filter) => url === filter);
+    } else if (filterType === 'regex') {
+      return filters.some((filter) => RegExp(filter).test(url));
+    }
+    return false;
   },
 
   performContentChange: function(query, value) {
@@ -135,6 +146,24 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   setupStatsigSdk: async function(apiKey, expIds, autoStart, nonce) {
+    let overrideUser = null;
+    try {
+      const url = new URL(window.location.href);
+      overrideUser = url.searchParams.get('overrideuser');
+    } catch (e) {
+      console.error('Failed to update user:', e);
+    }
+
+    if (overrideUser) {
+      this._statsigInstance  = new StatsigClient(apiKey, {
+        userID: overrideUser,
+        customIDs: {
+          stableID: overrideUser,
+        },
+      });
+      await this._statsigInstance.initializeAsync();
+    } 
+    
     if (!this._statsigInstance) {
       await StatsigWA.initialize(apiKey, autoStart);
       this._statsigInstance = StatsigWA.getStatsigClient();
