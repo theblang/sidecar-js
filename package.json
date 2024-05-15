@@ -1,6 +1,6 @@
 {
   "name": "statsig-sidecar",
-  "version": "1.0.7",
+  "version": "1.0.10",
   "description": "Statsig helps run simple web experiments by using a no-code visual editor.",
   "jsdelivr": "dist/index.js",
   "main": "dist/index.js",
@@ -27,6 +27,6 @@
   },
   "dependencies": {
     "statsig-js": "^4.43.0",
-    "statsig-web-analytics": "^1.0.2"
+    "statsig-web-analytics": "^1.0.6"
   }
 }

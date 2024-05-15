@@ -1,15 +1,16 @@
-const Statsig = require('statsig-js').default;
 const StatsigClient = require('statsig-js').StatsigClient;
 const StatsigWA = require('statsig-web-analytics');
 
 window["StatsigSidecar"] = window["StatsigSidecar"] || {
   _statsigInstance: null,
+  _queuedEvents: [],
+  _clientInitialized: false,
 
   getStatsigInstance: function() {
     return this._statsigInstance;
   },
 
-  getMatchingExperiments: function() {
+  _getMatchingExperiments: function() {
     const url = window.location.href;
     const scConfig = this._statsigInstance.getConfig('sidecar_dynamic_config');
     if (!scConfig) {
@@ -21,14 +22,14 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       const filters = exp.filters || [];
       const filterType = exp.filterType || 'all';
 
-      if (this.isMatchingExperiment(filterType, filters)) {
+      if (this._isMatchingExperiment(filterType, filters)) {
         matchingExps.push(exp.id);
       }
     });
     return matchingExps;
   },
 
-  isMatchingExperiment: function(filterType, filters) {
+  _isMatchingExperiment: function(filterType, filters) {
     if (filterType === 'all' || filters.length === 0) {
       return true;
     }
@@ -43,7 +44,32 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     return false;
   },
 
+  logEvent: function(eventName, value, metadata) {
+    if (!this._statsigInstance || !this._clientInitialized) {
+      this._queuedEvents.push({ eventName, value, metadata });
+      return;
+    }
+
+    if (this._queuedEvents.length > 0) {
+      const events = [...this._queuedEvents];
+      this._queuedEvents = [];
+      events.forEach((event) => {
+        this._statsigInstance.logEvent(
+          event.eventName,
+          event.value,
+          event.metadata
+        );
+      });
+      this._statsigInstance.flushEvents();
+    }
+
+    this._statsigInstance.logEvent(eventName, value, metadata);
+  },
+
   performContentChange: function(query, value) {
+    if (!query) {
+      return;
+    }
     const element = document.querySelector(query);
     if (element) {
       element.innerHTML = value;
@@ -51,6 +77,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   performReorderElement: function(query, operator, anchorQuery) {
+    if (!query) {
+      return;
+    }
     const target = document.querySelector(query);
     const anchor = document.querySelector(anchorQuery);
     if (!target || !anchor) {
@@ -74,6 +103,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   performStyleChange: function(query, value) {
+    if (!query) {
+      return;
+    }
     const element = document.querySelector(query);
     if (element) {
       element.setAttribute('style', value);
@@ -94,7 +126,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     document.head.appendChild(style);
   },
 
-  performDirective: function(directive, nonce) {
+  _performDirective: function(directive, nonce) {
     switch (directive.actionType) {
       case 'content-change':
         this.performContentChange(directive.queryPath, directive.value);
@@ -122,13 +154,13 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  performExperiments: function(expIds, nonce) {
+  _performExperiments: function(expIds, nonce) {
     if (Array.isArray(expIds)) {
       expIds.forEach((expId) => {
         const expConfig = this._statsigInstance.getExperiment(expId);
         const directives = expConfig.get('directives', []);
         directives.forEach((directive) => {
-          this.performDirective(directive, nonce);
+          this._performDirective(directive, nonce);
         });
       });
     }
@@ -155,12 +187,16 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
 
     if (overrideUser) {
-      this._statsigInstance  = new StatsigClient(apiKey, {
-        userID: overrideUser,
-        customIDs: {
-          stableID: overrideUser,
+      this._statsigInstance  = new StatsigClient(
+        apiKey, 
+        {
+          userID: overrideUser,
+          customIDs: {
+            stableID: overrideUser,
+          },
         },
-      });
+        { overrideStableID: overrideUser },
+      );
       await this._statsigInstance.initializeAsync();
     } 
     
@@ -169,15 +205,17 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       this._statsigInstance = StatsigWA.getStatsigClient();
     }
 
+    this._clientInitialized = true;
+
     if (!expIds) {
-      expIds = this.getMatchingExperiments();
+      expIds = this._getMatchingExperiments();
     }
     if (!expIds) {
       this.resetBody();
       return;
     }
 
-    this.performExperiments(expIds, nonce);
+    this._performExperiments(expIds, nonce);
   },
 }
 
