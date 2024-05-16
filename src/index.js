@@ -44,25 +44,33 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     return false;
   },
 
+  _flushQueuedEvents: function() {
+    if (this._queuedEvents.length === 0) {
+      return;
+    }
+    if (!this._statsigInstance) {
+      return;
+    }
+
+    const events = [...this._queuedEvents];
+    this._queuedEvents = [];
+    events.forEach((event) => {
+      this._statsigInstance.logEvent(
+        event.eventName,
+        event.value,
+        event.metadata
+      );
+    });
+    this._statsigInstance.flushEvents();
+  },
+
   logEvent: function(eventName, value, metadata) {
     if (!this._statsigInstance || !this._clientInitialized) {
       this._queuedEvents.push({ eventName, value, metadata });
       return;
     }
 
-    if (this._queuedEvents.length > 0) {
-      const events = [...this._queuedEvents];
-      this._queuedEvents = [];
-      events.forEach((event) => {
-        this._statsigInstance.logEvent(
-          event.eventName,
-          event.value,
-          event.metadata
-        );
-      });
-      this._statsigInstance.flushEvents();
-    }
-
+    this._flushQueuedEvents();
     this._statsigInstance.logEvent(eventName, value, metadata);
   },
 
@@ -164,10 +172,6 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
         });
       });
     }
-    this.resetBody();
-    if (window?.postExperimentCallback) {
-      window.postExperimentCallback(this._statsigInstance, expIds);
-    }
   },
 
   resetBody: function() {
@@ -186,36 +190,42 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       console.error('Failed to update user:', e);
     }
 
-    if (overrideUser) {
-      this._statsigInstance  = new StatsigClient(
-        apiKey, 
-        {
-          userID: overrideUser,
-          customIDs: {
-            stableID: overrideUser,
+    try {
+      if (overrideUser) {
+        this._statsigInstance  = new StatsigClient(
+          apiKey, 
+          {
+            userID: overrideUser,
+            customIDs: {
+              stableID: overrideUser,
+            },
           },
-        },
-        { overrideStableID: overrideUser },
-      );
-      await this._statsigInstance.initializeAsync();
-    } 
-    
-    if (!this._statsigInstance) {
-      await StatsigWA.initialize(apiKey, autoStart);
-      this._statsigInstance = StatsigWA.getStatsigClient();
-    }
+          { overrideStableID: overrideUser },
+        );
+        await this._statsigInstance.initializeAsync();
+      } 
+      
+      if (!this._statsigInstance) {
+        await StatsigWA.initialize(apiKey, autoStart);
+        this._statsigInstance = StatsigWA.getStatsigClient();
+      }
 
-    this._clientInitialized = true;
+      this._clientInitialized = true;
+      this._flushQueuedEvents();
 
-    if (!expIds) {
-      expIds = this._getMatchingExperiments();
+      if (!expIds) {
+        expIds = this._getMatchingExperiments();
+      }
+      if (expIds) {
+        this._performExperiments(expIds, nonce);
+      }
+    } catch (e) {
+      console.error('Failed to initialize Statsig:', e);
     }
-    if (!expIds) {
-      this.resetBody();
-      return;
+    this.resetBody();
+    if (window?.postExperimentCallback) {
+      window.postExperimentCallback(this._statsigInstance, expIds);
     }
-
-    this._performExperiments(expIds, nonce);
   },
 }
 
