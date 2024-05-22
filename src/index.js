@@ -11,29 +11,34 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   _getMatchingExperiments: function() {
-    const url = window.location.href;
     const scConfig = this._statsigInstance.getConfig('sidecar_dynamic_config');
     if (!scConfig) {
       return null;
     }
     const exps = scConfig.getValue('activeExperiments', []);
     const matchingExps = [];
+    let url = window.location.href;
+    try {
+      const u = new URL(url);
+      u.searchParams.delete('overrideuser');
+      url = u.toString();
+    } catch (e) {
+    }
     exps.forEach((exp) => {
       const filters = exp.filters || [];
       const filterType = exp.filterType || 'all';
 
-      if (this._isMatchingExperiment(filterType, filters)) {
+      if (this._isMatchingExperiment(url, filterType, filters)) {
         matchingExps.push(exp.id);
       }
     });
     return matchingExps;
   },
 
-  _isMatchingExperiment: function(filterType, filters) {
+  _isMatchingExperiment: function(url, filterType, filters) {
     if (filterType === 'all' || filters.length === 0) {
       return true;
-    }
-    const url = window.location.href;
+    }    
     if (filterType === 'contains') {
       return filters.some((filter) => url.includes(filter));
     } else if (filterType === 'equals') {
@@ -120,6 +125,16 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
+  performAttributeChange: function(query, attribute, value) {
+    if (!query) {
+      return;
+    }
+    const element = document.querySelector(query);
+    if (element) {
+      element.setAttribute(attribute, value);
+    }
+  },
+
   performInjectScript: function(value, nonce) {
     const script = document.createElement('script');
     script.setAttribute('nonce', nonce);
@@ -142,6 +157,10 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
 
       case 'style-change':
         this.performStyleChange(directive.queryPath, directive.value);
+        break;
+      
+      case 'image-change':
+        this.performAttributeChange(directive.queryPath, 'src', directive.value);
         break;
 
       case 'reorder-element':
