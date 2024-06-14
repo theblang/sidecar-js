@@ -200,7 +200,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  setupStatsigSdk: async function(apiKey, expIds, autoStart, nonce) {
+  setupStatsigSdk: async function(apiKey, expIds, autoStart, autoCapture, nonce) {
     let overrideUser = null;
     try {
       const url = new URL(window.location.href);
@@ -225,7 +225,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       } 
       
       if (!this._statsigInstance) {
-        await StatsigWA.initialize(apiKey, autoStart);
+        await StatsigWA.initialize(apiKey, autoStart, autoCapture);
         this._statsigInstance = StatsigWA.getStatsigClient();
       }
 
@@ -253,6 +253,7 @@ if (document.currentScript && document.currentScript.src) {
   const apiKey = url.searchParams.get('apikey');
   const multiExpIds = url.searchParams.get('multiexpids');
   const autoStart = url.searchParams.get('autostart') !== '0';
+  const autoCapture = url.searchParams.get('autocapture') !== '0';
   if (apiKey) {
     document.write('<style id="__sbpd">body { display: none; }</style>\n');
     const expIds = multiExpIds ? multiExpIds.split(',') : null;
@@ -260,6 +261,7 @@ if (document.currentScript && document.currentScript.src) {
       apiKey,
       expIds,
       autoStart,
+      autoCapture,
       document.currentScript.nonce,      
     );
   }
