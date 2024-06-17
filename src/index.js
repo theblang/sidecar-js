@@ -135,10 +135,10 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  performInjectScript: function(value, nonce) {
+  performInjectScript: function(value) {
     const script = document.createElement('script');
-    script.setAttribute('nonce', nonce);
-    script.nonce = nonce;
+    script.setAttribute('nonce', this.scriptNonce);
+    script.nonce = this.scriptNonce;
     script.innerHTML = value;
     document.head.appendChild(script);
   },
@@ -149,7 +149,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     document.head.appendChild(style);
   },
 
-  _performDirective: function(directive, nonce) {
+  _performDirective: function(directive) {
     switch (directive.actionType) {
       case 'content-change':
         this.performContentChange(directive.queryPath, directive.value);
@@ -172,7 +172,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
         break;
 
       case 'inject-script':
-        this.performInjectScript(directive.value, nonce);
+        this.performInjectScript(directive.value);
         break;
 
       case 'inject-style':
@@ -181,15 +181,27 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  _performExperiments: function(expIds, nonce) {
+  _performExperiments: function(expIds) {
     if (Array.isArray(expIds)) {
       expIds.forEach((expId) => {
         const expConfig = this._statsigInstance.getExperiment(expId);
         const directives = expConfig.get('directives', []);
         directives.forEach((directive) => {
-          this._performDirective(directive, nonce);
+          this._performDirective(directive);
         });
       });
+    }
+  },
+
+  processEvent: function(event) {
+    if (!event || !event.detail) {
+      return false;
+    }
+
+    const detail = event.detail;
+    if (detail.name === 'inject-script') {
+      this.performInjectScript(detail.value);
+      return false;
     }
   },
 
@@ -200,7 +212,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  setupStatsigSdk: async function(apiKey, expIds, autoStart, autoCapture, nonce) {
+  setupStatsigSdk: async function(apiKey, expIds, autoStart, autoCapture) {
     let overrideUser = null;
     try {
       const url = new URL(window.location.href);
@@ -236,7 +248,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
         expIds = this._getMatchingExperiments();
       }
       if (expIds) {
-        this._performExperiments(expIds, nonce);
+        this._performExperiments(expIds);
       }
     } catch (e) {
       console.error('Failed to initialize Statsig:', e);
@@ -254,6 +266,7 @@ if (document.currentScript && document.currentScript.src) {
   const multiExpIds = url.searchParams.get('multiexpids');
   const autoStart = url.searchParams.get('autostart') !== '0';
   const autoCapture = url.searchParams.get('autocapture') !== '0';
+  StatsigSidecar.scriptNonce = document.currentScript.nonce;
   if (apiKey) {
     document.write('<style id="__sbpd">body { display: none; }</style>\n');
     const expIds = multiExpIds ? multiExpIds.split(',') : null;
@@ -262,7 +275,10 @@ if (document.currentScript && document.currentScript.src) {
       expIds,
       autoStart,
       autoCapture,
-      document.currentScript.nonce,      
     );
+    document.addEventListener(`sidecar_${apiKey}`, (e) => {
+      StatsigSidecar.processEvent(e);
+      e.preventDefault();
+    });
   }
 }
