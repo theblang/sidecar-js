@@ -178,6 +178,10 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       case 'inject-style':
         this.performInjectStyle(directive.value);
         break;
+
+      case 'redirect-page':
+        this.redirectPage(directive.value);
+        break;
     }
   },
 
@@ -202,6 +206,13 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     if (detail.name === 'inject-script') {
       this.performInjectScript(detail.value);
       return false;
+    }
+  },
+
+  redirectPage: function(url) {
+    _flushQueuedEvents();
+    if (window && window.location && url && window.location.href !== url) {
+      window.location.href = url;
     }
   },
 
