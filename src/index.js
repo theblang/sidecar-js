@@ -277,9 +277,12 @@ if (document.currentScript && document.currentScript.src) {
   const multiExpIds = url.searchParams.get('multiexpids');
   const autoStart = url.searchParams.get('autostart') !== '0';
   const autoCapture = url.searchParams.get('autocapture') !== '0';
+  const reduceFlicker = url.searchParams.get('reduceflicker') !== '0';
   StatsigSidecar.scriptNonce = document.currentScript.nonce;
   if (apiKey) {
-    document.write('<style id="__sbpd">body { display: none; }</style>\n');
+    if (reduceFlicker) {
+      document.write('<style id="__sbpd">body { display: none; }</style>\n');
+    }
     const expIds = multiExpIds ? multiExpIds.split(',') : null;
     StatsigSidecar.setupStatsigSdk(
       apiKey,
