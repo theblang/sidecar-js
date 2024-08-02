@@ -45,6 +45,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       return filters.some((filter) => url === filter);
     } else if (filterType === 'regex') {
       return filters.some((filter) => RegExp(filter).test(url));
+    } else if (filterType === 'path') {
+      const path = new URL(url).pathname;
+      return filters.some((filter) => path === filter);
     }
     return false;
   },
@@ -121,7 +124,8 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
     const element = document.querySelector(query);
     if (element) {
-      element.setAttribute('style', value);
+      const existingStyle = element.getAttribute('style') || '';
+      element.setAttribute('style', `${existingStyle}; ${value}`);
     }
   },
 
@@ -211,7 +215,20 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
 
   redirectPage: function(url) {
     this._flushQueuedEvents();
-    if (window && window.location && url && window.location.href !== url) {
+    if (!window || !window.location || !url || window.location.href == url) {
+      return;
+    }
+
+    try {
+      const currentUrl = new URL(window.location.href);
+      const newUrl = new URL(url, currentUrl);
+      for (const key of currentUrl.searchParams.keys()) {
+        if (!newUrl.searchParams.has(key)) {
+          newUrl.searchParams.set(key, currentUrl.searchParams.get(key));
+        }
+      }
+      window.location.href = newUrl.toString();
+    } catch (e) {
       window.location.href = url;
     }
   },
