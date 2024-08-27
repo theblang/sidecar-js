@@ -190,6 +190,16 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   _performExperiments: function(expIds) {
+    if (/complete|interactive|loaded/.test(document.readyState)) {
+      this._performExperimentsAfterLoad(expIds);
+    } else {
+      document.addEventListener('DOMContentLoaded', () => {
+        this._performExperimentsAfterLoad(expIds);
+      });
+    }
+  },
+
+  _performExperimentsAfterLoad: function(expIds) {
     if (Array.isArray(expIds)) {
       expIds.forEach((expId) => {
         const expConfig = this._statsigInstance.getExperiment(expId);
