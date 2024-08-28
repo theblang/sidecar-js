@@ -156,23 +156,31 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   _performDirective: function(directive) {
     switch (directive.actionType) {
       case 'content-change':
-        this.performContentChange(directive.queryPath, directive.value);
+        this._performAfterLoad(() => {
+          this.performContentChange(directive.queryPath, directive.value);
+        });
         break;
 
       case 'style-change':
-        this.performStyleChange(directive.queryPath, directive.value);
+        this._performAfterLoad(() => {
+          this.performStyleChange(directive.queryPath, directive.value);
+        });
         break;
       
       case 'image-change':
-        this.performAttributeChange(directive.queryPath, 'src', directive.value);
+        this._performAfterLoad(() => {
+          this.performAttributeChange(directive.queryPath, 'src', directive.value);
+        });
         break;
 
       case 'reorder-element':
-        this.performReorderElement(
-          directive.queryPath,
-          directive.operator,
-          directive.anchorQueryPath,
-        );
+        this._performAfterLoad(() => {
+          this.performReorderElement(
+            directive.queryPath,
+            directive.operator,
+            directive.anchorQueryPath,
+          );
+        });
         break;
 
       case 'inject-script':
@@ -189,23 +197,27 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  _performExperiments: function(expIds) {
+  _performAfterLoad: function(callback) {
     if (/complete|interactive|loaded/.test(document.readyState)) {
-      this._performExperimentsAfterLoad(expIds);
+      callback();
     } else {
       document.addEventListener('DOMContentLoaded', () => {
-        this._performExperimentsAfterLoad(expIds);
+        callback();
       });
     }
   },
 
-  _performExperimentsAfterLoad: function(expIds) {
+  _performExperiments: function(expIds) {
     if (Array.isArray(expIds)) {
       expIds.forEach((expId) => {
         const expConfig = this._statsigInstance.getExperiment(expId);
         const directives = expConfig.get('directives', []);
         directives.forEach((directive) => {
-          this._performDirective(directive);
+          try {
+            this._performDirective(directive);
+          } catch (e) {
+            console.error('Failed to perform directive:', e);
+          }
         });
       });
     }
@@ -309,6 +321,9 @@ if (document.currentScript && document.currentScript.src) {
   if (apiKey) {
     if (reduceFlicker) {
       document.write('<style id="__sbpd">body { display: none; }</style>\n');
+      setTimeout(() => {
+        StatsigSidecar.resetBody();
+      }, 1000);
     }
     const expIds = multiExpIds ? multiExpIds.split(',') : null;
     StatsigSidecar.setupStatsigSdk(
