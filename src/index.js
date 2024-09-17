@@ -20,7 +20,10 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     let url = window.location.href;
     try {
       const u = new URL(url);
-      u.searchParams.delete('overrideuser');
+      // This check is important or else it messes up the original URL
+      if (u.searchParams.has('overrideuser')) {
+        u.searchParams.delete('overrideuser');
+      }
       url = u.toString();
     } catch (e) {
     }
