@@ -240,11 +240,6 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
 
   redirectPage: function(url) {
     this._flushQueuedEvents();
-    
-    // Force flush other events
-    if (this._statsigInstance) {
-      this._statsigInstance.flushEvents();
-    }
 
     if (!window || !window.location || !url || window.location.href == url) {
       return;
