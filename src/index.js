@@ -1,5 +1,5 @@
-const StatsigClient = require('statsig-js').StatsigClient;
-const StatsigWA = require('statsig-web-analytics');
+import { StatsigClient } from "@statsig/js-client";
+import { runStatsigAutoCapture } from '@statsig/web-analytics';
 
 window["StatsigSidecar"] = window["StatsigSidecar"] || {
   _statsigInstance: null,
@@ -11,11 +11,13 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   _getMatchingExperiments: function() {
-    const scConfig = this._statsigInstance.getConfig('sidecar_dynamic_config');
+    const scConfig = this._statsigInstance.getDynamicConfig(
+      'sidecar_dynamic_config',
+    );
     if (!scConfig) {
       return null;
     }
-    const exps = scConfig.getValue('activeExperiments', []);
+    const exps = scConfig.get('activeExperiments', []);
     const matchingExps = [];
     let url = window.location.href;
     try {
@@ -266,7 +268,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  setupStatsigSdk: async function(apiKey, expIds, autoStart, autoCapture) {
+  setupStatsigSdk: async function(apiKey, expIds, autoStart) {
     let overrideUser = null;
     try {
       const url = new URL(window.location.href);
@@ -276,25 +278,18 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
 
     try {
-      if (overrideUser) {
-        this._statsigInstance  = new StatsigClient(
-          apiKey, 
-          {
-            userID: overrideUser,
-            customIDs: {
-              stableID: overrideUser,
-            },
-          },
-          { overrideStableID: overrideUser },
-        );
-        await this._statsigInstance.initializeAsync();
-      } 
+      const user = overrideUser ? { 
+        userID: overrideUser,
+        customIDs: { stableID: overrideUser }
+      } : {};
+      this._statsigInstance  = new StatsigClient(
+        apiKey,
+        user,
+        { disableLogging: !autoStart }
+      );
+      await this._statsigInstance.initializeAsync();
+      runStatsigAutoCapture(this._statsigInstance);
       
-      if (!this._statsigInstance) {
-        await StatsigWA.initialize(apiKey, autoStart, autoCapture);
-        this._statsigInstance = StatsigWA.getStatsigClient();
-      }
-
       this._clientInitialized = true;
       this._flushQueuedEvents();
 
@@ -318,8 +313,10 @@ if (document.currentScript && document.currentScript.src) {
   const url = new URL(document.currentScript.src);
   const apiKey = url.searchParams.get('apikey');
   const multiExpIds = url.searchParams.get('multiexpids');
+  
   const autoStart = url.searchParams.get('autostart') !== '0';
-  const autoCapture = url.searchParams.get('autocapture') !== '0';
+  // Deprecated
+  // const autoCapture = url.searchParams.get('autocapture') !== '0';
   const reduceFlicker = url.searchParams.get('reduceflicker') !== '0';
   StatsigSidecar.scriptNonce = document.currentScript.nonce;
   if (apiKey) {
@@ -334,7 +331,6 @@ if (document.currentScript && document.currentScript.src) {
       apiKey,
       expIds,
       autoStart,
-      autoCapture,
     );
     document.addEventListener(`sidecar_${apiKey}`, (e) => {
       StatsigSidecar.processEvent(e);
