@@ -1,6 +1,6 @@
 {
   "name": "statsig-sidecar",
-  "version": "1.0.28",
+  "version": "2.0.1-beta.1",
   "description": "Statsig helps run simple web experiments by using a no-code visual editor.",
   "jsdelivr": "dist/index.js",
   "main": "dist/index.js",
@@ -26,9 +26,9 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
+    "@statsig/js-client": "^3.0.0",
+    "@statsig/web-analytics": "^3.0.0",
     "install": "^0.13.0",
-    "npm": "^10.8.0",
-    "statsig-js": "^4.43.0",
-    "statsig-web-analytics": "^1.0.11"
+    "npm": "^10.8.0"
   }
 }
