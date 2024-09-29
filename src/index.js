@@ -77,6 +77,10 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     this._statsigInstance.flushEvents();
   },
 
+  _isIOS: function() {
+    return /iPad|iPhone|iPod/.test(navigator?.userAgent ?? '');
+  },
+
   logEvent: function(eventName, value, metadata) {
     if (!this._statsigInstance || !this._clientInitialized) {
       this._queuedEvents.push({ eventName, value, metadata });
@@ -240,7 +244,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  redirectPage: function(url) {
+  redirectPage: async function(url) {
     this._flushQueuedEvents();
 
     if (!window || !window.location || !url || window.location.href == url) {
@@ -255,6 +259,11 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
           newUrl.searchParams.set(key, currentUrl.searchParams.get(key));
         }
       }
+
+      if (this._isIOS()) {
+        await this._statsigInstance.flush();
+      }
+
       window.location.href = newUrl.toString();
     } catch (e) {
       window.location.href = url;
