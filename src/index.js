@@ -278,19 +278,22 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   setupStatsigSdk: async function(apiKey, expIds, autoStart) {
-    let overrideUser = null;
+    let overrideUserID = null;
     try {
       const url = new URL(window.location.href);
-      overrideUser = url.searchParams.get('overrideuser');
+      overrideUserID = url.searchParams.get('overrideuser');
     } catch (e) {
       console.error('Failed to update user:', e);
     }
 
     try {
-      const user = overrideUser ? { 
-        userID: overrideUser,
-        customIDs: { stableID: overrideUser }
-      } : {};
+      const user = window?.statsigUser ?? (
+        overrideUserID ? { 
+            userID: overrideUserID,
+            customIDs: { stableID: overrideUserID }
+          } 
+          : {}
+      );
       this._statsigInstance  = new StatsigClient(
         apiKey,
         user,
