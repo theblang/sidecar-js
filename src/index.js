@@ -97,7 +97,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
     const element = document.querySelector(query);
     if (element) {
-      element.innerHTML = value;
+      this.observeMutation(element, () => {
+        element.innerHTML = value;
+      });
     }
   },
 
@@ -134,7 +136,10 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     const element = document.querySelector(query);
     if (element) {
       const existingStyle = element.getAttribute('style') || '';
-      element.setAttribute('style', `${existingStyle}; ${value}`);
+      const newStyle = `${existingStyle}; ${value}`;
+      this.observeMutation(element, () => {
+        element.setAttribute('style', newStyle);
+      });
     }
   },
 
@@ -144,7 +149,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
     const element = document.querySelector(query);
     if (element) {
-      element.setAttribute(attribute, value);
+      this.observeMutation(element, () => {
+        element.setAttribute(attribute, value);
+      });
     }
   },
 
@@ -242,6 +249,18 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       this.performInjectScript(detail.value);
       return false;
     }
+  },
+
+  observeMutation: function(element, modifierFunc) {
+    const config = { attributes: true, childList: true };
+    const callback = (mutationsList, observer) => {
+      setTimeout(() => {
+        modifierFunc();
+      }, 0);
+    };
+    const observer = new MutationObserver(callback);
+    observer.observe(element, config);
+    modifierFunc();
   },
 
   redirectPage: async function(url) {
