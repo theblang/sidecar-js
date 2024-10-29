@@ -143,7 +143,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  performAttributeChange: function(query, attribute, value) {
+  performAttributeChange: function(query, attribute, value, removeAttrs = []) {
     if (!query) {
       return;
     }
@@ -151,6 +151,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     if (element) {
       this.observeMutation(element, () => {
         element.setAttribute(attribute, value);
+        removeAttrs?.forEach((attr) => {
+          element.removeAttribute(attr);
+        });
       });
     }
   },
@@ -185,7 +188,12 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       
       case 'image-change':
         this._performAfterLoad(() => {
-          this.performAttributeChange(directive.queryPath, 'src', directive.value);
+          this.performAttributeChange(
+            directive.queryPath,
+            'src',
+            directive.value,
+            ['srcset'],
+          );
         });
         break;
 
