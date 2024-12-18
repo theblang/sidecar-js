@@ -310,7 +310,13 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  setupStatsigSdk: async function(apiKey, expIds, autoStart) {
+  setupStatsigSdk: async function(
+    apiKey,
+    expIds,
+    autoStart,
+    initUrlOverride,
+    logUrlOverride,
+  ) {
     let overrideUserID = null;
     try {
       const url = new URL(window.location.href);
@@ -327,11 +333,15 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
           } 
           : {}
       );
-      this._statsigInstance  = new StatsigClient(
-        apiKey,
-        user,
-        { disableLogging: !autoStart }
-      );
+      const options = window?.statsigOptions ?? {};
+      options.disableLogging = !autoStart;
+      if (initUrlOverride || logUrlOverride) {
+        options.networkConfig = { 
+          initializeUrl: initUrlOverride,
+          logEventUrl: logUrlOverride,
+        };
+      }
+      this._statsigInstance  = new StatsigClient(apiKey, user, options);
       await this._statsigInstance.initializeAsync();
       runStatsigAutoCapture(this._statsigInstance);
       
@@ -358,6 +368,8 @@ if (document.currentScript && document.currentScript.src) {
   const url = new URL(document.currentScript.src);
   const apiKey = url.searchParams.get('apikey');
   const multiExpIds = url.searchParams.get('multiexpids');
+  const initUrl = url.searchParams.get('initializeurl');
+  const logUrl = url.searchParams.get('logeventurl');
   
   const autoStart = url.searchParams.get('autostart') !== '0';
   // Deprecated
@@ -376,6 +388,8 @@ if (document.currentScript && document.currentScript.src) {
       apiKey,
       expIds,
       autoStart,
+      initUrl,
+      logUrl,
     );
     document.addEventListener(`sidecar_${apiKey}`, (e) => {
       StatsigSidecar.processEvent(e);
