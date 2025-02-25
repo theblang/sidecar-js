@@ -9,16 +9,26 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   getStatsigInstance: function() {
     return this._statsigInstance;
   },
-
-  _getMatchingExperiments: function() {
+  activateExperiment: function(expId) {
+    const exp = StatsigSidecar._getAllExperiments().find(exp => {
+      if(exp.id === expId) return exp;
+    });
+    if(exp) {      
+      StatsigSidecar._performExperiments([exp.id]);
+    }
+  },
+  _getAllExperiments: function() {
     const scConfig = this._statsigInstance.getDynamicConfig(
       'sidecar_dynamic_config',
     );
     if (!scConfig) {
       return null;
     }
-    const exps = scConfig.get('activeExperiments', []);
-    const matchingExps = [];
+    return scConfig.get('activeExperiments', []);
+  },
+  _getMatchingExperiments: function() {
+    const exps = StatsigSidecar._getAllExperiments(),
+          matchingExps = [];
     let url = window.location.href;
     try {
       const u = new URL(url);
