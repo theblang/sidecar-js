@@ -9,6 +9,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   getStatsigInstance: function() {
     return this._statsigInstance;
   },
+
   activateExperiment: function(expId) {
     const exp = StatsigSidecar._getAllExperiments().find(exp => {
       if(exp.id === expId) return exp;
@@ -17,6 +18,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       StatsigSidecar._performExperiments([exp.id]);
     }
   },
+
   _getAllExperiments: function() {
     const scConfig = this._statsigInstance.getDynamicConfig(
       'sidecar_dynamic_config',
@@ -26,6 +28,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
     return scConfig.get('activeExperiments', []);
   },
+  
   _getMatchingExperiments: function() {
     const exps = StatsigSidecar._getAllExperiments(),
           matchingExps = [];
