@@ -11,27 +11,23 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   activateExperiment: function(expId) {
-    const exp = StatsigSidecar._getAllExperiments().find(exp => {
-      if(exp.id === expId) return exp;
-    });
-    if(exp) {      
-      StatsigSidecar._performExperiments([exp.id]);
+    const matchedExps = this._getMatchingExperiments({includeDeferred: true});
+    if(matchedExps.includes(expId)) {
+      StatsigSidecar._performExperiments([expId]);
     }
   },
 
-  _getAllExperiments: function() {
+  _getMatchingExperiments: function(filters) {
+    const applyFilters = {includeDeferred: false, ...(filters || {})};
+
     const scConfig = this._statsigInstance.getDynamicConfig(
       'sidecar_dynamic_config',
     );
     if (!scConfig) {
       return null;
     }
-    return scConfig.get('activeExperiments', []);
-  },
-  
-  _getMatchingExperiments: function() {
-    const exps = StatsigSidecar._getAllExperiments(),
-          matchingExps = [];
+    const exps = scConfig.get('activeExperiments', []);
+    const matchingExps = [];
     let url = window.location.href;
     try {
       const u = new URL(url);
@@ -45,8 +41,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     exps.forEach((exp) => {
       const filters = exp.filters || [];
       const filterType = exp.filterType || 'all';
-
-      if (this._isMatchingExperiment(url, filterType, filters)) {
+      const isDeferred = !!exp.defer;
+      const passesDeferFilter = applyFilters.includeDeferred ? true : !isDeferred;
+      if (passesDeferFilter && this._isMatchingExperiment(url, filterType, filters)) {
         matchingExps.push(exp.id);
       }
     });
