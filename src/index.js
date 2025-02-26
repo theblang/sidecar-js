@@ -11,15 +11,27 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
 
   activateExperiment: function(expId) {
-    const matchedExps = this._getMatchingExperiments({includeDeferred: true});
+    const matchedExps = this._getMatchingExperiments().map(exp => exp.id);
     if(matchedExps.includes(expId)) {
       StatsigSidecar._performExperiments([expId]);
     }
   },
 
-  _getMatchingExperiments: function(filters) {
-    const applyFilters = {includeDeferred: false, ...(filters || {})};
+  _runPreExperimentScripts: function() {
+    const scConfig = this._statsigInstance.getDynamicConfig(
+      'sidecar_dynamic_config',
+    );
+    if (!scConfig) {
+      return null;
+    }
+    scConfig.get('activeExperiments', [])
+      .filter(exp => exp.preExperimentScript)
+      .forEach(exp => {
+        this.performInjectScript(exp.preExperimentScript);
+      });
+  },  
 
+  _getMatchingExperiments: function() {
     const scConfig = this._statsigInstance.getDynamicConfig(
       'sidecar_dynamic_config',
     );
@@ -41,10 +53,8 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     exps.forEach((exp) => {
       const filters = exp.filters || [];
       const filterType = exp.filterType || 'all';
-      const isDeferred = !!exp.defer;
-      const passesDeferFilter = applyFilters.includeDeferred ? true : !isDeferred;
-      if (passesDeferFilter && this._isMatchingExperiment(url, filterType, filters)) {
-        matchingExps.push(exp.id);
+      if (this._isMatchingExperiment(url, filterType, filters)) {
+        matchingExps.push({id: exp.id, disableAutoRun: exp.disableAutoRun});
       }
     });
     return matchingExps;
@@ -263,20 +273,6 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  _bindCustomTriggers: function() {
-    const scConfig = this._statsigInstance.getDynamicConfig(
-      'sidecar_dynamic_config',
-    );
-    if (!scConfig) {
-      return null;
-    }
-    scConfig.get('activeExperiments', [])
-      .filter(exp => exp.customTrigger)
-      .forEach(exp => {
-        this.performInjectScript(exp.customTrigger);
-      });
-  },
-
   processEvent: function(event) {
     if (!event || !event.detail) {
       return false;
@@ -371,10 +367,12 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       
       this._clientInitialized = true;
       this._flushQueuedEvents();
-      this._bindCustomTriggers();
+      this._runPreExperimentScripts();
 
       if (!expIds) {
-        expIds = this._getMatchingExperiments();
+        expIds = this._getMatchingExperiments()
+          .filter(exp => !exp.disableAutoRun)
+          .map(exp => exp.id);
       }
       if (expIds) {
         this._performExperiments(expIds);
