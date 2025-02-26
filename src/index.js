@@ -271,9 +271,9 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       return null;
     }
     scConfig.get('activeExperiments', [])
-      .filter(exp => exp.custom_trigger)
+      .filter(exp => exp.customTrigger)
       .forEach(exp => {
-        this.performInjectScript(exp.custom_trigger);
+        this.performInjectScript(exp.customTrigger);
       });
   },
 
