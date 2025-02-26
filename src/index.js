@@ -263,6 +263,20 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
+  _bindCustomTriggers: function() {
+    const scConfig = this._statsigInstance.getDynamicConfig(
+      'sidecar_dynamic_config',
+    );
+    if (!scConfig) {
+      return null;
+    }
+    scConfig.get('activeExperiments', [])
+      .filter(exp => exp.custom_trigger)
+      .forEach(exp => {
+        this.performInjectScript(exp.custom_trigger);
+      });
+  },
+
   processEvent: function(event) {
     if (!event || !event.detail) {
       return false;
@@ -357,6 +371,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       
       this._clientInitialized = true;
       this._flushQueuedEvents();
+      this._bindCustomTriggers();
 
       if (!expIds) {
         expIds = this._getMatchingExperiments();
