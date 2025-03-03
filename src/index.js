@@ -7,8 +7,8 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   _clientInitialized: false,
 
   activateExperiment: function(expId) {
-    const matchedExps = this._getMatchingExperiments().map(exp => exp.id);
-    if(matchedExps.includes(expId)) {
+    const matchedExps = this._getMatchingExperiments();
+    if (matchedExps.some(exp => exp.id === expId)) {
       StatsigSidecar._performExperiments([expId]);
     }
   },
@@ -34,14 +34,14 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
   },
   
   _getMatchingExperiments: function() {
+    const matchingExps = [];
     const scConfig = this._statsigInstance.getDynamicConfig(
       'sidecar_dynamic_config',
     );
     if (!scConfig) {
-      return null;
+      return matchingExps;
     }
     const exps = scConfig.get('activeExperiments', []);
-    const matchingExps = [];
     let url = window.location.href;
     try {
       const u = new URL(url);
@@ -56,7 +56,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       const filters = exp.filters || [];
       const filterType = exp.filterType || 'all';
       if (this._isMatchingExperiment(url, filterType, filters)) {
-        matchingExps.push({id: exp.id, disableAutoRun: exp.disableAutoRun});
+        matchingExps.push(exp);
       }
     });
     return matchingExps;
@@ -316,18 +316,15 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
-  _runPreExperimentScripts: function() {
-    const scConfig = this._statsigInstance.getDynamicConfig(
-      'sidecar_dynamic_config',
-    );
-    if (!scConfig) {
-      return null;
-    }
-    scConfig.get('activeExperiments', [])
-      .filter(exp => exp.preExperimentScript)
-      .forEach(exp => {
-        this.performInjectScript(exp.preExperimentScript);
-      });
+  _runPreExperimentScripts: function(matchedExps) {
+    matchedExps?.forEach(exp => {
+      if (exp.prerunScript) {
+        const expConfig = this._statsigInstance.getExperiment(exp.id);
+        if (expConfig.ruleID !== 'prestart') {
+          this.performInjectScript(exp.prerunScript);
+        }
+      }
+    });
   },
 
   setupStatsigSdk: async function(
@@ -367,10 +364,12 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       
       this._clientInitialized = true;
       this._flushQueuedEvents();
-      this._runPreExperimentScripts();
 
       if (!expIds) {
-        expIds = this._getMatchingExperiments()
+        const matchingExps = this._getMatchingExperiments();
+        this._runPreExperimentScripts(matchingExps);
+
+        expIds = matchingExps
           .filter(exp => !exp.disableAutoRun)
           .map(exp => exp.id);
       }
