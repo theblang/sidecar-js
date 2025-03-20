@@ -13,6 +13,20 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     }
   },
 
+  findElementToObserve: function(query) {
+    while (query) {
+      try {
+        const element = document.querySelector(query);
+        if (element) {
+          return element;
+        }
+      } catch (e) {
+      }
+      query = query.substring(0, query.lastIndexOf('>'));
+    }
+    return document.body;
+  },
+
   _flushQueuedEvents: function() {
     if (this._queuedEvents.length === 0) {
       return;
@@ -123,31 +137,27 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     if (!query) {
       return;
     }
-    const element = document.querySelector(query);
-    if (element) {
-      this.observeMutation(element, () => {
-        if (element.getAttribute(attribute) !== value) {
-          element.setAttribute(attribute, value);
-          removeAttrs?.forEach((attr) => {
-            element.removeAttribute(attr);
-          });
-        }
-      });
-    }
+    this.setupMutationObserver(query, () => {
+      const element = document.querySelector(query);
+      if (element && element.getAttribute(attribute) !== value) {
+        element.setAttribute(attribute, value);
+        removeAttrs?.forEach((attr) => {
+          element.removeAttribute(attr);
+        });
+      }
+    });
   },
 
   performContentChange: function(query, value) {
     if (!query) {
       return;
     }
-    const element = document.querySelector(query);
-    if (element) {
-      this.observeMutation(element, () => {
-        if (element.innerHTML !== value) {
-          element.innerHTML = value;
-        }
-      });
-    }
+    this.setupMutationObserver(query, () => {
+      const element = document.querySelector(query);
+      if (element && element.innerHTML !== value) {
+        element.innerHTML = value;
+      }
+    });
   },
 
   _performDirective: function(directive) {
@@ -259,16 +269,16 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
     if (!query) {
       return;
     }
-    const element = document.querySelector(query);
-    if (element) {
-      const existingStyle = element.getAttribute('style') || '';
-      const newStyle = `${existingStyle}; ${value}`;
-      this.observeMutation(element, () => {
-        if (element.getAttribute('style') !== newStyle) {
+    this.setupMutationObserver(query, () => {
+      const element = document.querySelector(query);
+      if (element) {
+        const existingStyle = element.getAttribute('style') || '';
+        if (!existingStyle.includes(` ${value}`)) {
+          const newStyle = `${existingStyle}; ${value}`;
           element.setAttribute('style', newStyle);
         }
-      });
-    }
+      }
+    });
   },
 
   processEvent: function(event) {
@@ -325,6 +335,13 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
         }
       }
     });
+  },
+
+  setupMutationObserver: function(query, callback) {
+    const observeElement = this.findElementToObserve(query);
+    if (observeElement) {
+      this.observeMutation(observeElement, callback);
+    }
   },
 
   setupStatsigSdk: async function(
