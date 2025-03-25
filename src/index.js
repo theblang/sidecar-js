@@ -44,7 +44,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
         event.metadata
       );
     });
-    this._statsigInstance.flushEvents();
+    this._statsigInstance.flush && this._statsigInstance.flush();
   },
   
   _getMatchingExperiments: function() {
