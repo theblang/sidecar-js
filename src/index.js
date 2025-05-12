@@ -1,5 +1,6 @@
 import { StatsigClient } from "@statsig/js-client";
 import { runStatsigAutoCapture } from '@statsig/web-analytics';
+import { runStatsigSessionReplay} from '@statsig/session-replay';
 
 window["StatsigSidecar"] = window["StatsigSidecar"] || {
   _statsigInstance: null,
@@ -378,7 +379,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
       this._statsigInstance  = new StatsigClient(apiKey, user, options);
       await this._statsigInstance.initializeAsync();
       runStatsigAutoCapture(this._statsigInstance);
-      
+      if (window?.statsigSessionReplayOptions) runStatsigSessionReplay(this._statsigInstance, window?.statsigSessionReplayOptions);
       this._clientInitialized = true;
       this._flushQueuedEvents();
 
