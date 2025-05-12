@@ -368,7 +368,7 @@ window["StatsigSidecar"] = window["StatsigSidecar"] || {
           : {}
       );
       const options = window?.statsigOptions ?? {};
-      options.disableLogging = !autoStart;
+      options.disableLogging = options.disableLogging ?? !autoStart;
       if (initUrlOverride || logUrlOverride) {
         options.networkConfig = { 
           initializeUrl: initUrlOverride,
